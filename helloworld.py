@@ -1,2 +1,2 @@
-
-print("Hello world!")
+import cv2
+print("hello world")
