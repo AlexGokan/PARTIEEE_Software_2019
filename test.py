@@ -11,7 +11,7 @@ from old_blob_detect import *
 
 img = cv2.imread("3.png")
 m,n,d = img.shape
-resize_percent = 0.25
+resize_percent = 0.5
 new_x = int(n*resize_percent)
 new_y = int(m*resize_percent)
 img = cv2.resize(img,(new_x,new_y),interpolation=cv2.INTER_AREA)
