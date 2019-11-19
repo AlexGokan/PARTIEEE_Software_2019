@@ -1,0 +1,70 @@
+
+The major hardware pipeline looks like this
+
+Camera + GPS data ----> transmission ----> reciever on ground ----> Our computer (Jetson or otherwise) ----> judging station
+
+
+Electrical subteam is handling all transmission aspects, so we simply have to worry about this step
+
+image+gps ----> our computer ----> output (list of cropped images, each representing a target, with the corresponding metadata for each)
+
+metadata is:
+  {
+  gps location,
+  shape,
+  color (background),
+  color (text),
+  text content (letter)
+  }
+
+so you could wrap it into a class/object
+I would reccomend an "image class" which holds the original full image, GPS location of the plane at the time it was taken, and a list of target opbjects
+the "target class" would have a cropped image and "metadata object"
+
+
+All the image processing algorithms should be member functions of this image class
+
+---------------------------------------------------------------------------------------------------
+
+
+The image processing broadly falls into 2 categories:  Detection, and classification
+
+  Detection:
+    Question: what pixels in this image are a target, and which ones are not?
+    What is the desired output: a list of cropped images and corresponding GPS locations for each target detected
+    Possible methods of solving (so far):
+      1. bing++ (no machine learning, but we are limited to C++ if we do so)
+      2. principal component analysis + thresholding (see the Purdue design paper from last year.  Generally pretty fast, but relies on some very weak heuristics so it is not that generalizable.  Works best when combined with other approches)
+      3. histogram of oriented gradients (a relatively simple machine learning algorithm. Has the potential to be very powerful but the machine learning part means we need a larger dataset)
+      4. SURF (used by many few other teams in the past.  Pretty simple to implement, but not recommended to use on its own because of how hard it is to tune.  Can maybe work in conjunction with other methods)
+      
+   These algorithms all return different things. bing++ returns a list of bounding boxes, PCA and HoG return heatmaps, and SURF returns a list of points with corresponding strengths/confidence
+   They all need to be converted to some sort of bounding box for cropping, and there are a few different methods
+   
+   Heatmap -> bounding box:
+      threshold the heatmap (x=1 if above some value L, otherwise x=0)
+          note:  there are many different ways to decide this value L, such as Otsu's method
+      use connected component analysis to remove all clusters less than a certain size (I know MATLAB's morphological operation tools do this really easily, not as sure about python but it should be pretty similar)
+      Each remaining connected component is some object, generate a vounding box around each one
+      
+   point+confidence -> heatmap:
+    Note:  This is only a very simple method, I am sure there are smarter ways to do this
+    for each point in the list, draw a circle of diamater equal to its confidence around it
+    for each circle, if a pixel is underneath it, increase its value by 1
+    this way, areas with many points will have generally brighter areas in the heatmap
+    
+  Classification: this will be run seperately on each object returned from the detection step
+    Question: What is the rest of the metadata for this target (since we already have GPS location)
+    what is the desired output:  a full "target object" as described above the dashed line
+    Sub problems:
+      Color classification:
+        Suggested methods:
+          K-means (simple to implement, but prone to a lot of problems as well)
+          Other. . . . (Theres lots of room for creative algorithms here.  I have some interesting ideas that I can explore with everyone later)
+      Shape Classification:
+          Fourier analysis (seems complicated)
+          HoG (if we are using the HoG for detection, we can reuse that metric here in classification.  Same problems with machine learning apply still, however)
+      Text Classification:
+          Optical Character recognition (this is mostly a solved problem (see Tesseract OCR). MATLAB's OCR is meh, but workable)
+
+
