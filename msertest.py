@@ -9,18 +9,28 @@ Ideas for blob detection:
 	https://en.wikipedia.org/wiki/Blob_detection
 """
 
+"""
+TODO: 
+determine MSER upper and lower limits for size
+check cv2 version, 4.0 vs 4.1 for mser image size
+"""
 
 import cv2
 import numpy as np
 
+print(cv2.__version__)
 
 filepath = "targets_01_widecrop.png"
+#filepath = "3.png"
+
 dim = (1920//2,1080//2)
 
 img = cv2.imread(filepath,0)
 vis = cv2.imread(filepath,1)
-img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-vis = cv2.resize(vis, dim, interpolation = cv2.INTER_AREA)
+
+print(img.shape)
+#img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+#vis = cv2.resize(vis, dim, interpolation = cv2.INTER_AREA)
 
 
 
@@ -32,6 +42,8 @@ hulls = [cv2.convexHull(p.reshape(-1, 1, 2)) for p in regions]
 
 visc = vis.copy()
 vism = vis.copy()
+
+img_for_crop = img.copy()
 
 cv2.polylines(visc, hulls, 1, (0, 255, 0))
 
@@ -61,9 +73,8 @@ idx = 0
 
 matched = []
 
-inertia_thresh = 0.2
-size_ub = 500
-size_lb = 40
+inertia_thresh = 0.1
+size_lb = int(img.shape[1]*img.shape[0]*0.000075)
 
 for c in contours:
 	
@@ -88,7 +99,7 @@ for c in contours:
 		roi_raw.append(img[pixelpoints[i][0],pixelpoints[i][1]])
 		
 	deviation = np.std(roi_raw)
-	print("{} {} ".format(idx,deviation))
+	print("{} {} {}".format(idx,deviation,sz))
 
 	
 
@@ -100,7 +111,7 @@ for c in contours:
 	
 	#print(sz)
 	
-	if(inertia > 0.2 and sz > size_lb and sz < size_ub):
+	if(inertia > inertia_thresh and sz > size_lb):
 		matched.append(c)
 	M = cv2.moments(c)
 	cX = int(M["m10"] / M["m00"])
@@ -108,10 +119,13 @@ for c in contours:
 	#visc = cv2.putText(visc,"r{0:.3f}".format(roundness),(cX,cY-20),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	#visc = cv2.putText(visc,"a{}".format(sz),(cX,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	visc = cv2.putText(visc,"{}".format(idx),(cX-20,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
-	visc = cv2.putText(visc,"{0:.3f}".format(deviation),(cX+20,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
+	visc = cv2.putText(visc,"{0:.3f}".format(inertia),(cX+20,cY),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+	visc = cv2.putText(visc,"{0:.3f}".format(sz),(cX+40,cY+10),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 	#visc = cv2.putText(visc,"p{0:.4f}".format(perim),(cX,cY+20),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	idx = idx + 1
 	
+	
+visc = cv2.resize(visc,dim,interpolation = cv2.INTER_AREA)
 cv2.imshow('all MSERs',visc)
 
 
@@ -133,9 +147,54 @@ for c in matched:
 	cY = int(M["m01"] / M["m00"])
 	vism = cv2.putText(vism,"{}".format(idx),(cX+10,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	idx = idx + 1
+	
+	
+"""
+for c in matched:
+	M = cv2.moments(c)
+	cX = int(M["m10"] / M["m00"])
+	cY = int(M["m01"] / M["m00"])
+	
+	x,y,w,h = cv2.boundingRect(c)
+	
+	print("xywh:  {} {} {} {}".format(x,y,w,h))
+	
+	
+	upper = y + int(h/2)
+	lower = y - int(h/2)
+	left = x - int(w/2)
+	right = x + int(w/2)
+	
+	print("ULLR:  {} {} {} {}".format(upper,lower,left,right))
+	
+	padding = 0
+	
+	left_padded = left - padding
+	right_padded = right + padding
+	upper_padded = upper - padding
+	lower_padded = lower + padding
+	
+	
+	left = max(0,left_padded)
+	right = min(img_for_crop.shape[1]-1,right_padded)
+	upper = max(0,upper_padded)
+	lower = min(img_for_crop.shape[0]-1,lower_padded)
+	
+	print("Dimensions:  {} {} {} {}".format(left,right,upper,lower))
+	
+	cropped_im = img_for_crop[left:right,lower:upper]
+	cv2.imshow('cropped',cropped_im)
+	cv2.waitKey(0)
+	print("-------------------------------------")
+		
+"""
+	
 
 #cv2.imshow("text only", t)
 
+
+
+vism = cv2.resize(vism,dim,interpolation = cv2.INTER_AREA)
 cv2.imshow('matched by heuristics',vism)
 
 
