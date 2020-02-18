@@ -1,7 +1,7 @@
 The preprocessing script is msertest.py
 
 You run it with the following syntax:
-python msertest.py <input image path> <output path>
+python msertest.py /<input image path/> /<output path/>
   
 The results will be placed in a folder called "PARTIEEE_output_images", and inside that will be the subfolder you chose when running the program
 
