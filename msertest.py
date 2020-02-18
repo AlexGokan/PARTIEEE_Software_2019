@@ -17,11 +17,17 @@ check cv2 version, 4.0 vs 4.1 for mser image size
 
 import cv2
 import numpy as np
+import os
+import sys
 
 print(cv2.__version__)
 
+input_image_path = sys.argv[1]
+output_path = sys.argv[2]
+
 filepath = "targets_01_widecrop.png"
 #filepath = "3.png"
+filepath = input_image_path
 
 dim = (1920//2,1080//2)
 
@@ -43,15 +49,10 @@ hulls = [cv2.convexHull(p.reshape(-1, 1, 2)) for p in regions]
 visc = vis.copy()
 vism = vis.copy()
 
-img_for_crop = img.copy()
+img_for_crop = vis.copy()
 
 cv2.polylines(visc, hulls, 1, (0, 255, 0))
 
-"""
-cv2.imshow('img', vis)
-
-cv2.waitKey(0)
-"""
 
 mask = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
 
@@ -101,13 +102,7 @@ for c in contours:
 	deviation = np.std(roi_raw)
 	print("{} {} {}".format(idx,deviation,sz))
 
-	
 
-	"""
-	print(max_in_roi)
-	print(min_in_roi)
-	print("............")
-	"""
 	
 	#print(sz)
 	
@@ -116,12 +111,18 @@ for c in contours:
 	M = cv2.moments(c)
 	cX = int(M["m10"] / M["m00"])
 	cY = int(M["m01"] / M["m00"])
+	
+	x,y,w,h = cv2.boundingRect(c)
 	#visc = cv2.putText(visc,"r{0:.3f}".format(roundness),(cX,cY-20),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	#visc = cv2.putText(visc,"a{}".format(sz),(cX,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
-	visc = cv2.putText(visc,"{}".format(idx),(cX-20,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
-	visc = cv2.putText(visc,"{0:.3f}".format(inertia),(cX+20,cY),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
-	visc = cv2.putText(visc,"{0:.3f}".format(sz),(cX+40,cY+10),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+	#visc = cv2.putText(visc,"{}".format(idx),(cX-20,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
+	#visc = cv2.putText(visc,"{0:.3f}".format(inertia),(cX+20,cY),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+	#visc = cv2.putText(visc,"{0:.3f}".format(sz),(cX+40,cY+10),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
 	#visc = cv2.putText(visc,"p{0:.4f}".format(perim),(cX,cY+20),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
+	visc = cv2.putText(visc,"p{0:.4f}".format(x),(cX+20,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
+	visc = cv2.putText(visc,"p{0:.4f}".format(y),(cX+40,cY+20),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
+	
+	
 	idx = idx + 1
 	
 	
@@ -148,54 +149,66 @@ for c in matched:
 	vism = cv2.putText(vism,"{}".format(idx),(cX+10,cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
 	idx = idx + 1
 	
+dir_path = "PARTIEEE_output_images/{}".format(output_path)
+print(dir_path)
+if(os.path.isdir(dir_path)):
+	print("dir exists!")
+else:
+	os.mkdir(dir_path)
+	print("dir does not exist")
+
 	
-"""
+idx = 0
+padding = 2.0
+ylim,xlim,depth = img_for_crop.shape
 for c in matched:
-	M = cv2.moments(c)
-	cX = int(M["m10"] / M["m00"])
-	cY = int(M["m01"] / M["m00"])
-	
 	x,y,w,h = cv2.boundingRect(c)
 	
-	print("xywh:  {} {} {} {}".format(x,y,w,h))
-	
-	
-	upper = y + int(h/2)
-	lower = y - int(h/2)
-	left = x - int(w/2)
-	right = x + int(w/2)
-	
-	print("ULLR:  {} {} {} {}".format(upper,lower,left,right))
-	
-	padding = 0
-	
-	left_padded = left - padding
-	right_padded = right + padding
-	upper_padded = upper - padding
-	lower_padded = lower + padding
-	
-	
-	left = max(0,left_padded)
-	right = min(img_for_crop.shape[1]-1,right_padded)
-	upper = max(0,upper_padded)
-	lower = min(img_for_crop.shape[0]-1,lower_padded)
-	
-	print("Dimensions:  {} {} {} {}".format(left,right,upper,lower))
-	
-	cropped_im = img_for_crop[left:right,lower:upper]
-	cv2.imshow('cropped',cropped_im)
-	cv2.waitKey(0)
-	print("-------------------------------------")
-		
-"""
-	
+	lside = x - int(padding*w/2) + int(w/2)
+	rside = x + int(padding*w/2) + int(w/2)
+	upside = y - int(padding*h/2) + int(h/2)
+	downside = y + int(padding*h/2) + int(h/2)
 
-#cv2.imshow("text only", t)
+	if(upside < 0):
+		upside = 0
+		
+	if(lside < 0):
+		lside = 0
+		
+	if(downside >= ylim):
+		downside = ylim - 1
+	if(rside >= xlim):
+		rside = xlim - 1
+	
+	
+	
+	print("{} {} {} {}".format(x,y,w,h))
+	print("{} {}, {} {}".format(lside,rside,upside,downside))
+	
+	
+	print("--------------------------------------------")
+	
+	#cropped = img_for_crop[lside:rside][upside:downside]
+	#cropped = img_for_crop[0:100,0:100].copy()
+	cropped = img_for_crop[upside:downside,lside:rside].copy()
+	print("{},{}".format(rside-lside,downside-upside))
+	print(cropped.shape)
+	cropped = cv2.resize(cropped,(cropped.shape[1]*4,cropped.shape[0]*4),interpolation = cv2.INTER_AREA)
+	
+	print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+	cv2.imshow("cropped{}".format(idx),cropped)
+	
+	cv2.imwrite("{}/img{}.png".format(dir_path,idx),cropped)
+	
+	idx = idx + 1
+
 
 
 
 vism = cv2.resize(vism,dim,interpolation = cv2.INTER_AREA)
 cv2.imshow('matched by heuristics',vism)
+
+
 
 
 
